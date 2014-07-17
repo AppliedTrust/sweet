@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link href='https://fonts.googleapis.com/css?family=Architects+Daughter' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print" />
+
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <title>Sweet by AppliedTrust</title>
+  </head>
+
+  <body>
+    <header>
+      <div class="inner">
+        <h1>Sweet</h1>
+        <h2>Network device configuration backups and change alerts for the 21st century - it&#39;s not RANCID!</h2>
+        <a href="https://github.com/AppliedTrust/sweet" class="button"><small>View project on</small>GitHub</a>
+      </div>
+    </header>
+
+    <div id="content-wrapper">
+      <div class="inner clearfix">
+        <section id="main-content">
+          <h3>
+<a name="network-device-configuration-backups-and-change-alerts-for-the-21st-century---its-not-rancid" class="anchor" href="#network-device-configuration-backups-and-change-alerts-for-the-21st-century---its-not-rancid"><span class="octicon octicon-link"></span></a>Network device configuration backups and change alerts for the 21st century - it's not RANCID!</h3>
+
+<h2>
+<a name="features" class="anchor" href="#features"><span class="octicon octicon-link"></span></a>Features:</h2>
+
+<ul>
+<li>Stores device configs in Git</li>
+<li>Simple configuration file</li>
+<li>Single binary - only runtime dependency is Git</li>
+<li>Email notifications</li>
+<li>Built-in web status dashboard</li>
+<li>Embedded Cisco IOS/ASA support</li>
+<li>Supports external collection scripts (such as clogin, jlogin, etc.)</li>
+<li>Currently supports Linux and OSX</li>
+</ul><h2>
+<a name="quickstart" class="anchor" href="#quickstart"><span class="octicon octicon-link"></span></a>Quickstart:</h2>
+
+<ul>
+<li>Download the sweet binary for your system: <a href="https://github.com/AppliedTrust/sweet/releases">https://github.com/AppliedTrust/sweet/releases</a>
+</li>
+<li>Make it executable: chmod 755 sweet32</li>
+<li>Create a minimal sweet.conf file with device access info:</li>
+</ul><pre><code>[router1.example.com]
+method = cisco
+user = sweetuser
+pass = SecretPW4sweet
+</code></pre>
+
+<ul>
+<li>Start sweet with: sweet32 --web sweet.conf</li>
+<li>Check out the web status at: http://localhost:5000</li>
+</ul><h2>
+<a name="usage" class="anchor" href="#usage"><span class="octicon octicon-link"></span></a>Usage:</h2>
+
+<ul>
+<li>All command-line flags can also be set in the config file.</li>
+<li>See the sample config for more options: <a href="https://github.com/AppliedTrust/sweet/blob/master/sweet-sample.conf">https://github.com/AppliedTrust/sweet/blob/master/sweet-sample.conf</a>
+</li>
+</ul><pre><code>  sweet [options] &lt;config&gt;
+  sweet -h --help
+  sweet --version
+
+Options:
+  -w, --workspace &lt;dir&gt;     Specify workspace directory [default: ./workspace].
+  -i, --interval &lt;secs&gt;     Collection interval in secs [default: 300].
+  -c, --concurrency &lt;num&gt;   Concurrent device collections [default: 30].
+  -t, --to &lt;email@addr&gt;     Send change notifications to this email.
+  -f, --from &lt;email@addr&gt;   Send change notifications from this email.
+  -s, --smtp &lt;host:port&gt;    SMTP server connection info [default: localhost:25].
+  --insecure                Accept untrusted SSH device keys.
+  --push                    Do a "git push" after committing changed configs.
+  --syslog                  Send log messages to syslog rather than stdout.
+  --timeout &lt;secs&gt;          Device collection timeout in secs [default: 60].
+  --web                     Run an HTTP status server.
+  --weblisten &lt;host:port&gt;   Host and port to use for HTTP status server [default: localhost:5000].
+  --version                 Show version.
+  -h, --help                Show this screen.
+</code></pre>
+
+<h2>
+<a name="contributors" class="anchor" href="#contributors"><span class="octicon octicon-link"></span></a>Contributors:</h2>
+
+<ul>
+<li>Randy Else: <a href="https://appliedtrust.com/randy">https://appliedtrust.com/randy</a>
+</li>
+<li>Trent R. Hein: <a href="https://appliedtrust.com/trent">https://appliedtrust.com/trent</a>
+</li>
+<li>Ned McClain: <a href="https://appliedtrust.com/ned">https://appliedtrust.com/ned</a>
+</li>
+</ul>
+        </section>
+
+        <aside id="sidebar">
+          <a href="https://github.com/AppliedTrust/sweet/zipball/master" class="button">
+            <small>Download</small>
+            .zip file
+          </a>
+          <a href="https://github.com/AppliedTrust/sweet/tarball/master" class="button">
+            <small>Download</small>
+            .tar.gz file
+          </a>
+
+          <p class="repo-owner"><a href="https://github.com/AppliedTrust/sweet"></a> is maintained by <a href="https://github.com/AppliedTrust">AppliedTrust</a>.</p>
+
+          <p>This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the Architect theme by <a href="https://twitter.com/jasonlong">Jason Long</a>.</p>
+        </aside>
+      </div>
+    </div>
+
+  
+  </body>
+</html>
