@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Sweet status dashboard">
+    <meta name="author" content="">
+
+    <title>{{.Title}}</title>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="static/bootstrap.min.css">
+    <link rel="stylesheet" href="static/bootstrap-theme.min.css">
+
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="static/html5shiv.js"></script>
+      <script src="static/respond.min.js"></script>
+    <![endif]-->
+  </head>
+
+  <body>
+
+    <div class="container">
+
+      <div class="header">
+        <div class="row">
+          <div class="col-md-6">
+            <h1>Sweet {{.Title}}</h1>
+          </div>
+          <div class="col-md-6">
+            <h4 class="pull-right">
+              Server <strong><span class="text-success">{{.MyHostname}}</span></strong> time is <strong><span class="text-success">{{.Now}}</strong></span>
+            </h4>
+          </div>
+        </div>
+      </div>
+      <hr>
+
+      <div class="row">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Device</th>
+              <th>Last Collected</th>
+              <th>Last Changed</th>
+              <th>Status</th>
+              <th>+/-</th>
+            </tr>
+          </thead>
+          {{ range .Devices }}
+          <tr class="{{.Web.Class}}">
+            <td><strong>{{.Device.Hostname}}</strong></td>
+            <td>
+              {{if .Web.EnableConfLink}}
+                <a href="configs/{{.Device.Hostname}}">{{.CollectedTimeFormatted}} ago</a>
+              {{else}}
+                Never
+              {{end}}
+            </td>
+            <td>
+              {{if .Web.EnableDiffLink}}
+                <a class="toggleDiff" data-target="#{{.Web.CSSID}}-diffContent">
+                {{.ChangedTimeFormatted}} ago</a>
+              {{else}}
+                Never
+              {{end}}
+            </td>
+            <td>{{.StatusMessage}}</td>
+            <td>
+              {{if .Web.EnableDiffLink}}
+                <span class='label label-primary'>+{{.Added}}</span>
+                <span class='label label-danger'>-{{.Removed}}</span>
+              {{end}}
+            </td>
+          </tr>
+          <tr id="{{.Web.CSSID}}-diffContent" class="info" style="display: none">
+            <td colspan=5 width=100%><pre>{{.Diff}}</pre></td>
+          </tr>
+          {{ end }}
+        </table>
+        
+      </div>
+
+    </div><!-- /.container -->
+
+    <!-- js -->
+    <script src="static/jquery.min.js"></script>
+    <script>
+$(function() {
+   $(".toggleDiff").click(function(){
+       $($(this).data("target")).toggle();
+   })
+});
+    </script>
+  </body>
+</html>
