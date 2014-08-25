@@ -1,6 +1,6 @@
 package main
 
-// sweet.go: network device backups and change alerts for the 21st century - it's not RANCID.
+// sweet.go: network device backups and change alerts for the 21st century - inspired by RANCID.
 
 // TODO: send email on start, new errors
 

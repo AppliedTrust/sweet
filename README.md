@@ -1,4 +1,4 @@
-Network device configuration backups and change alerts for the 21st century - it's not RANCID!
+Network device configuration backups and change alerts for the 21st century - inspired by RANCID!
 
 ##Features:
 * Stores device configs in Git
