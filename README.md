@@ -48,8 +48,11 @@ Options:
   -h, --help                Show this screen.
 ```
 
-##Contributors:
+##Authors:
 * Randy Else: https://appliedtrust.com/randy
 * Trent R. Hein: https://appliedtrust.com/trent
 * Ned McClain: https://appliedtrust.com/ned
+
+##Contributors:
+* jcollie: https://github.com/jcollie
 

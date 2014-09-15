@@ -27,7 +27,7 @@ func RunWebserver(Opts *SweetOptions) {
 		})
 		err := http.ListenAndServe(Opts.HttpListen, nil)
 		if err != nil {
-			Opts.LogFatal(err)
+			Opts.LogFatal(fmt.Sprintf("Error starting HTTP server: %s", err.Error()))
 		}
 		Opts.LogInfo("Web server started")
 	}
@@ -42,17 +42,17 @@ func webIndexHandler(w http.ResponseWriter, r *http.Request, Opts SweetOptions) 
 
 	pageTemplate, err := Asset("tmpl/index.html")
 	if err != nil {
-		Opts.LogFatal(err)
+		Opts.LogFatal(fmt.Sprintf("Error with HTTP server template asset: %s", err.Error()))
 	}
 
 	t, err := template.New("name").Parse(string(pageTemplate))
 	if err != nil {
-		Opts.LogFatal(err)
+		Opts.LogFatal(fmt.Sprintf("Error parsing HTTP server template: %s", err.Error()))
 	}
 
 	hostname, err := os.Hostname()
 	if err != nil {
-		Opts.LogFatal(err)
+		Opts.LogFatal(fmt.Sprintf("Error fetching my hostname: %s", err.Error()))
 	}
 
 	reports := make(map[string]Report, 0)
@@ -70,7 +70,7 @@ func webIndexHandler(w http.ResponseWriter, r *http.Request, Opts SweetOptions) 
 
 	err = t.Execute(w, data)
 	if err != nil {
-		Opts.LogFatal(err)
+		Opts.LogFatal(fmt.Sprintf("Error executing HTTP template: %s", err.Error()))
 	}
 }
 
@@ -88,7 +88,7 @@ func getDeviceWebReport(device DeviceAccess, Opts SweetOptions) (*Report, error)
 
 	reg, err := regexp.Compile(`\.`)
 	if err != nil {
-		Opts.LogFatal(err)
+		Opts.LogFatal(fmt.Sprintf("Error with HTTP regex: %s", err.Error()))
 	}
 	report.Web.CSSID = reg.ReplaceAllString(device.Hostname, "")
 

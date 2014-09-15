@@ -98,7 +98,7 @@ func runReporter(Opts SweetOptions) {
 
 	lastGlobalCommit, err := getLastGlobalCommit()
 	if err != nil {
-		Opts.LogFatal(err)
+		Opts.LogFatal(fmt.Sprintf("Error getting last commit info: %s", err.Error()))
 	}
 	msg := fmt.Sprintf("Commit ID for this change: %s", lastGlobalCommit)
 	changeReport += msg + "\n\n"
@@ -122,7 +122,7 @@ func runReporter(Opts SweetOptions) {
 		Opts.LogInfo("Sending notification email")
 		hostname, err := os.Hostname()
 		if err != nil {
-			Opts.LogFatal(err)
+			Opts.LogFatal(fmt.Sprintf("Error sending notification email: %s", err.Error()))
 		}
 		emailSubject := fmt.Sprintf("Change notification from Sweet on %s", hostname)
 		err = sendEmail(Opts, emailSubject, changeReport)

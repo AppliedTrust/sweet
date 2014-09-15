@@ -2,11 +2,8 @@ package sweet
 
 // sweet.go: network device backups and change alerts for the 21st century - inspired by RANCID.
 
-// TODO: send email on start, new errors
-
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"github.com/kballard/go-shellquote"
 	"github.com/kr/pty"
@@ -107,18 +104,18 @@ func RunCollectors(Opts *SweetOptions) {
 
 		statusText, err := exec.Command("git", "status", "-s").Output()
 		if err != nil {
-			Opts.LogFatal(err)
+			Opts.LogFatal(fmt.Sprintf("Git status error: %s", err.Error()))
 		}
 		if len(statusText) > 0 {
 			_, err = exec.Command("git", "add", ".").Output()
 			if err != nil {
-				Opts.LogFatal(err)
+				Opts.LogFatal(fmt.Sprintf("Git add error: %s", err.Error()))
 			}
 
 			commitMsg := "Sweet commit:\n" + string(statusText)
 			_, err = exec.Command("git", "commit", "-a", "-m", commitMsg).Output()
 			if err != nil {
-				Opts.LogFatal(err)
+				Opts.LogFatal(fmt.Sprintf("Git commit error: %s", err.Error()))
 			}
 			if Opts.GitPush == true {
 				_, err = exec.Command("git", "push").Output()
@@ -147,7 +144,7 @@ func collectDevice(device DeviceAccess, Opts *SweetOptions, done chan string) {
 
 	if len(device.Method) == 0 {
 		if len(Opts.DefaultMethod) == 0 {
-			Opts.LogFatal(fmt.Errorf("No method specified for %s and default-method not defined.", device.Hostname))
+			Opts.LogFatal(fmt.Sprintf("No method specified for %s and default-method not defined.", device.Hostname))
 		}
 		device.Method = Opts.DefaultMethod
 	}
@@ -158,21 +155,21 @@ func collectDevice(device DeviceAccess, Opts *SweetOptions, done chan string) {
 	if ok {
 		device.Timeout, err = time.ParseDuration(device.Config["timeout"] + "s")
 		if err != nil {
-			Opts.LogFatal(fmt.Errorf("Bad timeout setting %s for host %s", device.Config["timeout"], device.Hostname))
+			Opts.LogFatal(fmt.Sprintf("Bad timeout setting %s for host %s", device.Config["timeout"], device.Hostname))
 		}
 	}
 	// setup collection options
 	_, ok = device.Config["user"]
 	if !ok {
 		if len(Opts.DefaultUser) == 0 {
-			Opts.LogFatal(fmt.Errorf("No user specified for %s and default-user not defined.", device.Hostname))
+			Opts.LogFatal(fmt.Sprintf("No user specified for %s and default-user not defined.", device.Hostname))
 		}
 		device.Config["user"] = Opts.DefaultUser
 	}
 	_, ok = device.Config["pass"]
 	if !ok {
 		if len(Opts.DefaultPass) == 0 {
-			Opts.LogFatal(fmt.Errorf("No pass specified for %s and default-pass not defined.", device.Hostname))
+			Opts.LogFatal(fmt.Sprintf("No pass specified for %s and default-pass not defined.", device.Hostname))
 		}
 		device.Config["pass"] = Opts.DefaultPass
 	}
@@ -248,7 +245,7 @@ func collectDevice(device DeviceAccess, Opts *SweetOptions, done chan string) {
 	// save the config to the workspace
 	err = ioutil.WriteFile(device.Hostname, []byte(rawConfig), 0644)
 	if err != nil {
-		Opts.LogFatal(err)
+		Opts.LogFatal(fmt.Sprintf("Error saving config to workspace: %s", err.Error()))
 	}
 
 	// notify runCollectors() that we're done
@@ -293,7 +290,7 @@ func collectExternal(device DeviceAccess) (string, error) {
 		if err := cmd.Process.Signal(os.Interrupt); err != nil {
 			return "", err
 		}
-		return "", errors.New(fmt.Sprintf("Timeout collecting from %s after %d seconds", device.Hostname, int(device.Timeout.Seconds())))
+		return "", fmt.Errorf("Timeout collecting from %s after %d seconds", device.Hostname, int(device.Timeout.Seconds()))
 	}
 	// TODO: cleanup external script output to not include SSH session junk
 	return stdout.String(), nil

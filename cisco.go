@@ -51,7 +51,7 @@ func CollectCisco(device DeviceAccess) map[string]string {
 		result["err"] = fmt.Sprintf("%s: %s", device.Hostname, err.Error())
 		return result
 	}
-	c.Send <- "show conf\n"
+	c.Send <- "show running-config\n"
 	result["config"], err = timeoutSave(c.Receive, 500*time.Millisecond)
 	if err != nil {
 		result["err"] = fmt.Sprintf("%s: %s", device.Hostname, err.Error())

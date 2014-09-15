@@ -9,7 +9,7 @@ all: bindata binaries packages
 binaries: bindata linux32 linux64 darwin64
 
 bindata:
-	GOOS=linux GOARCH=amd64 $(GOPATH)/bin/go-bindata -pkg="sweet" tmpl/ static/
+	GOOS=linux GOARCH=amd64 go-bindata -pkg="sweet" tmpl/ static/
 
 linux64: bindata
 	GOOS=linux GOARCH=amd64 go build -o bin/sweet64 cmd/main.go
@@ -50,23 +50,23 @@ deb64:
 
 #### 
 release:
-	$(GOPATH)/bin/github-release release --user appliedtrust --repo sweet --tag $(VERSION) \
+	github-release release --user appliedtrust --repo sweet --tag $(VERSION) \
 		--name "Sweet $(VERSION)" \
 		--description "Network device configuration backups and change alerts for the 21st century." \
 		--pre-release
-	$(GOPATH)/bin/github-release upload --user appliedtrust --repo sweet --tag $(VERSION) \
+	github-release upload --user appliedtrust --repo sweet --tag $(VERSION) \
 		--name "sweet-linux-32" \
 		--file bin/sweet32
-	$(GOPATH)/bin/github-release upload --user appliedtrust --repo sweet --tag $(VERSION) \
+	github-release upload --user appliedtrust --repo sweet --tag $(VERSION) \
 		--name "sweet-linux-64" \
 		--file bin/sweet64
-	$(GOPATH)/bin/github-release upload --user appliedtrust --repo sweet --tag $(VERSION) \
+	github-release upload --user appliedtrust --repo sweet --tag $(VERSION) \
 		--name "sweet-osx" \
 		--file bin/sweet-osx
-	$(GOPATH)/bin/github-release upload --user appliedtrust --repo sweet --tag $(VERSION) \
+	github-release upload --user appliedtrust --repo sweet --tag $(VERSION) \
 		--name bin/sweet_$(VERSION)_i386.deb \
 		--file bin/sweet_$(VERSION)_i386.deb
-	$(GOPATH)/bin/github-release upload --user appliedtrust --repo sweet --tag $(VERSION) \
+	github-release upload --user appliedtrust --repo sweet --tag $(VERSION) \
 		--name bin/sweet-$(VERSION)-1.i386.rpm \
 		--file bin/sweet-$(VERSION)-1.i386.rpm
 

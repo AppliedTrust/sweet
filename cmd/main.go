@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-const version = "1.0"
+const version = "1.1"
 
 var usage = `sweet: network device backups and change alerts for the 21st century.
 
@@ -46,12 +46,12 @@ Options:
 func main() {
 	Opts, err := setupOptions()
 	if err != nil {
-		Opts.LogFatal(err)
+		Opts.LogFatal(err.Error())
 	}
 
 	ec, err := sweet.RunErrorCache()
 	if err != nil {
-		Opts.LogFatal(err)
+		Opts.LogFatal(err.Error())
 	}
 	Opts.ErrorCacheUpdates = ec.Updates
 	Opts.ErrorCacheRequests = ec.Requests

@@ -9,11 +9,11 @@ import (
 )
 
 //// logging convenience methods
-func (Opts *SweetOptions) LogFatal(err error) {
+func (Opts *SweetOptions) LogFatal(message string) {
 	if Opts.UseSyslog {
-		Opts.Syslog.Emerg(err.Error())
+		Opts.Syslog.Emerg(message)
 	} else {
-		log.Println(ansi.Color(err.Error(), "red+b:white"))
+		log.Println(ansi.Color(message, "red+b:white"))
 	}
 	os.Exit(1)
 }
