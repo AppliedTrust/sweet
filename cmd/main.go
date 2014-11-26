@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-const version = "1.1"
+const version = "1.2"
 
 var usage = `sweet: network device backups and change alerts for the 21st century.
 
