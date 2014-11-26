@@ -6,7 +6,7 @@ Network device configuration backups and change alerts for the 21st century - in
 * Single binary - only runtime dependency is Git
 * Email notifications
 * Built-in web status dashboard
-* Embedded Cisco IOS/ASA support
+* Embedded Cisco IOS/ASA and Juniper JunOS support
 * Supports external collection scripts (such as clogin, jlogin, etc.)
 * Currently supports Linux and OSX
 

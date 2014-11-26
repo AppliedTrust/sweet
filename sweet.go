@@ -234,6 +234,37 @@ func collectDevice(device DeviceAccess, Opts *SweetOptions, done chan string) {
 			return
 		}
 
+	} else if device.Method == "junos" {
+		r := make(chan map[string]string)
+		go func() {
+			r <- CollectJunOS(device)
+		}()
+		collectionResults := make(map[string]string)
+		select {
+		case collectionResults = <-r:
+		case <-time.After(Opts.Timeout):
+			msg := fmt.Sprintf("Timeout collecting from %s after %d seconds", device.Hostname, int(device.Timeout.Seconds()))
+			Opts.LogErr(msg)
+			Opts.ErrorCacheUpdates <- &ErrorCacheUpdate{Hostname: device.Hostname, ErrorMessage: msg}
+			done <- device.Hostname
+			return
+		}
+		if len(collectionResults["err"]) > 0 {
+			Opts.LogErr(collectionResults["err"])
+			Opts.ErrorCacheUpdates <- &ErrorCacheUpdate{Hostname: device.Hostname, ErrorMessage: collectionResults["err"]}
+			done <- device.Hostname
+			return
+		}
+		// for now we only handle config collectionResults
+		rawConfig, ok = collectionResults["config"]
+		if !ok {
+			msg := fmt.Sprintf("Config missing from collection results", device.Hostname)
+			Opts.LogErr(msg)
+			Opts.ErrorCacheUpdates <- &ErrorCacheUpdate{Hostname: device.Hostname, ErrorMessage: msg}
+			done <- device.Hostname
+			return
+		}
+
 	} else {
 		msg := fmt.Sprintf("Unknown access method: %s", device.Method)
 		Opts.LogErr(msg)
