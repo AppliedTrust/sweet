@@ -8,7 +8,7 @@ import (
 )
 
 func TestJunOSGood(t *testing.T) {
-	d := new(DeviceAccess)
+	d := new(DeviceConfig)
 	d.Config = make(map[string]string)
 	d.Method = "junos"
 	d.Timeout = 10 * time.Second

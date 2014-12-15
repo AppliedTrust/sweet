@@ -5,6 +5,7 @@ import (
 	"github.com/mgutz/ansi"
 	"log"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -31,6 +32,13 @@ func (Opts *SweetOptions) LogInfo(message string) {
 		log.Println(ansi.Color(message, "green+b"))
 	}
 }
+func (Opts *SweetOptions) LogChanges(message string) {
+	if Opts.UseSyslog {
+		Opts.Syslog.Info(message)
+	} else {
+		log.Println(ansi.Color(message, "blue+b"))
+	}
+}
 
 // timeAgo formats time to a string
 func timeAgo(oldTime time.Time) string {
@@ -55,4 +63,16 @@ func timeAgo(oldTime time.Time) string {
 		str = fmt.Sprintf("%d days", seconds/(60*60*24))
 	}
 	return str
+}
+
+func cleanName(n string) string {
+	c := strings.ToLower(n)
+	if len(c) > 255 {
+		c = c[:255]
+	}
+	c = strings.ToLower(c)
+	c = strings.Replace(c, "/", "-", -1)
+	c = strings.Replace(c, " ", "-", -1)
+	c = strings.Replace(c, ":", "-", -1)
+	return c
 }

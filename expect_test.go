@@ -107,7 +107,7 @@ func TestTimeoutSave(t *testing.T) {
 		c <- testString
 	}()
 	go func() { // time this out incase expect never returns
-		saved, err := timeoutSave(c, testTimeout)
+		saved, err := expectSaveTimeout("#", c, testTimeout)
 		if err != nil {
 			t.Errorf("Error running TimeoutSave: %s", err.Error())
 			result <- err.Error()

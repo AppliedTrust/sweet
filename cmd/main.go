@@ -2,8 +2,6 @@ package main
 
 // sweet.go: network device backups and change alerts for the 21st century - inspired by RANCID.
 
-// TODO: send email on start, new errors
-
 import (
 	"errors"
 	"github.com/appliedtrust/sweet"
@@ -16,7 +14,7 @@ import (
 	"time"
 )
 
-const version = "1.2"
+const version = "1.3"
 
 var usage = `sweet: network device backups and change alerts for the 21st century.
 
@@ -49,14 +47,7 @@ func main() {
 		Opts.LogFatal(err.Error())
 	}
 
-	ec, err := sweet.RunErrorCache()
-	if err != nil {
-		Opts.LogFatal(err.Error())
-	}
-	Opts.ErrorCacheUpdates = ec.Updates
-	Opts.ErrorCacheRequests = ec.Requests
-
-	go sweet.RunWebserver(&Opts)
+	//go sweet.RunWebserver(&Opts)
 
 	sweet.RunCollectors(&Opts)
 }
@@ -64,6 +55,9 @@ func main() {
 //// Read CLI flags and config file
 func setupOptions() (sweet.SweetOptions, error) {
 	Opts := sweet.SweetOptions{}
+	Opts.Status = &sweet.Status{}
+	Opts.Status.Status = make(map[string]sweet.DeviceStatus)
+
 	arguments, err := docopt.Parse(usage, nil, true, version, false)
 	if err != nil {
 		return Opts, err
@@ -82,7 +76,7 @@ func setupOptions() (sweet.SweetOptions, error) {
 	// set non-zero-value defaults
 	Opts.Workspace = "./sweet-workspace"
 	Opts.Concurrency = 30
-	Opts.SmtpString = "localhost:25" //TODO BROKEN!?
+	Opts.SmtpString = "localhost:25"
 	Opts.HttpListen = "localhost:5000"
 	Opts.Interval = 300 * time.Second
 	Opts.Timeout = 60 * time.Second
@@ -180,11 +174,8 @@ func setupOptions() (sweet.SweetOptions, error) {
 			}
 
 		} else { // device-specific config
-			device := new(sweet.DeviceAccess)
-			device.Hostname = name
-			device.Method = section["method"]
-			device.Config = section
-			Opts.Devices = append(Opts.Devices, *device)
+			device := sweet.DeviceConfig{Hostname: name, Method: section["method"], Config: section}
+			Opts.Devices = append(Opts.Devices, device)
 		}
 	}
 
@@ -273,5 +264,3 @@ func setupOptions() (sweet.SweetOptions, error) {
 
 	return Opts, nil
 }
-
-//// EOF

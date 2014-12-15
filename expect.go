@@ -51,7 +51,7 @@ func expectSave(until string, receive chan string) (string, error) {
 }
 
 // Save everything from the channel with a read timeout
-func timeoutSave(receive chan string, timeout time.Duration) (string, error) {
+func expectSaveTimeout(until string, receive chan string, timeout time.Duration) (string, error) {
 	all := ""
 	for {
 		select {
@@ -60,6 +60,9 @@ func timeoutSave(receive chan string, timeout time.Duration) (string, error) {
 				return "", errors.New("Connection closed unexpectedly.")
 			}
 			all += s
+			if strings.Contains(all, until) {
+				return all, nil
+			}
 		case _ = <-time.After(timeout):
 			return all, nil
 		}

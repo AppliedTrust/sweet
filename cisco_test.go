@@ -8,7 +8,7 @@ import (
 )
 
 func TestCiscoGood(t *testing.T) {
-	d := new(DeviceAccess)
+	d := new(DeviceConfig)
 	d.Config = make(map[string]string)
 	d.Method = "cisco"
 	d.Timeout = 10 * time.Second
