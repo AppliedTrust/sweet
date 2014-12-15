@@ -54,6 +54,11 @@ func (collector Cisco) Collect(device DeviceConfig) (map[string]string, error) {
 	if err != nil {
 		return result, fmt.Errorf("Command 'show running-config' failed: %s", err.Error())
 	}
+	c.Send <- "show version\n"
+	result["version"], err = expectSaveTimeout("#", c.Receive, device.CommandTimeout)
+	if err != nil {
+		return result, fmt.Errorf("Command 'show version' failed: %s", err.Error())
+	}
 
 	// cleanup config results
 	result["config"] = strings.TrimSpace(strings.TrimPrefix(result["config"], "show running-config"))
