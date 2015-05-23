@@ -232,11 +232,10 @@ func collectDevice(device DeviceConfig, Opts *SweetOptions) DeviceStatus {
 
 // newConnection establishes a connection to a device
 func newConnection(device DeviceConfig) (*Connection, error) {
-	c := new(Connection)
+	c := Connection{}
 	c.Receive = make(chan string)
 	c.Send = make(chan string)
-	_, ok := device.Config["insecure"]
-	if ok && device.Config["insecure"] == "true" {
+	if _, ok := device.Config["insecure"]; ok && device.Config["insecure"] == "true" {
 		c.Cmd = exec.Command("ssh", "-oStrictHostKeyChecking=no", device.Config["user"]+"@"+device.Target)
 	} else {
 		c.Cmd = exec.Command("ssh", device.Config["user"]+"@"+device.Target)
@@ -244,33 +243,33 @@ func newConnection(device DeviceConfig) (*Connection, error) {
 
 	f, err := pty.Start(c.Cmd)
 	if err != nil {
-		return c, err
+		return &c, err
 	}
 
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				log.Printf("Error reading from SSH connection: %s", r)
+				log.Printf("Error (panic) reading from SSH connection: %s", r)
 			}
 			f.Close()
 		}()
 		reader := bufio.NewReader(f)
 		for {
-			str, err := reader.ReadString('\n')
-			if err != nil {
+			buf := make([]byte, 1024)
+			if _, err := reader.Read(buf); err != nil {
 				if err != io.EOF {
-					log.Printf("Error reading from SSH connection: %s", err.Error())
+					//log.Printf("Error reading from SSH connection: %s", err.Error())
 				}
 				return
 			}
-			c.Receive <- str
+			c.Receive <- string(buf)
 		}
 	}()
 
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				log.Printf("Error writing to SSH connection: %s", r)
+				log.Printf("Error (panic) writing to SSH connection: %s", r)
 			}
 			f.Close()
 		}()
@@ -292,7 +291,7 @@ func newConnection(device DeviceConfig) (*Connection, error) {
 			}
 		}
 	}()
-	return c, nil
+	return &c, nil
 }
 
 // StatusGet safely gets a device's status from global state
