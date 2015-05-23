@@ -1,0 +1,28 @@
+body {
+	padding: 40px;
+}
+
+#log {
+  font-size: 10px;
+  list-style-type: none;
+  padding: 0px;
+  margin: 0px;
+
+}
+.logdate {
+  font-weight: 800;
+  color: #2980b9;
+}
+.error {
+  color: #f06;
+}
+
+#devicestatus div.row {
+  height: 80px;
+  margin: 40px;
+  padding: 20px;
+}
+
+.hostname {
+  font-weight: 700;
+}
