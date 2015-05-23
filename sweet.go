@@ -48,12 +48,13 @@ type ConfigDiff struct {
 
 // DeviceStatus stores the status of a single device
 type DeviceStatus struct {
-	Device       DeviceConfig
-	State        DeviceStatusState
-	When         time.Time
-	Configs      map[string]string
-	Diffs        map[string]ConfigDiff
-	ErrorMessage string
+	Device        DeviceConfig
+	State         DeviceStatusState
+	StatePrevious DeviceStatusState
+	When          time.Time
+	Configs       map[string]string
+	Diffs         map[string]ConfigDiff
+	ErrorMessage  string
 }
 
 // Status provides a global, lockable DeviceStatus for all devices
@@ -119,6 +120,7 @@ func RunCollectors(Opts *SweetOptions) {
 					status := DeviceStatus{}
 					status.Device = device
 					status.When = time.Now()
+					status.StatePrevious = status.State
 					status.State = StatePending
 					Opts.StatusSet(status)
 
@@ -160,6 +162,7 @@ func collectDevice(device DeviceConfig, Opts *SweetOptions) DeviceStatus {
 	status := DeviceStatus{}
 	status.Device = device
 	status.When = time.Now()
+	status.StatePrevious = status.State
 	status.State = StateError
 
 	var c Collector
@@ -175,6 +178,7 @@ func collectDevice(device DeviceConfig, Opts *SweetOptions) DeviceStatus {
 		}
 		c = newExternalCollector()
 	} else {
+		status.StatePrevious = status.State
 		status.State = StateError
 		status.ErrorMessage = fmt.Sprintf("Unknown access method for %s: %s", device.Hostname, device.Method)
 		return status
@@ -225,6 +229,7 @@ func collectDevice(device DeviceConfig, Opts *SweetOptions) DeviceStatus {
 			return status
 		}
 	}
+	status.StatePrevious = status.State
 	status.State = StateSuccess
 	status.Configs = collectionResults
 	return status

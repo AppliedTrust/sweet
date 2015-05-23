@@ -47,7 +47,7 @@ func updateDiffs(Opts *SweetOptions) error {
 			fileName := device.Hostname + "-" + cleanName(name)
 			s, err := exec.Command("git", "status", "-s", fileName).Output()
 			if err != nil {
-				return err
+				return fmt.Errorf("Error with 'git status -s': %s", err.Error())
 			}
 			if strings.HasPrefix(string(s), "??") { // new file
 				diff.NewFile = true
@@ -55,7 +55,7 @@ func updateDiffs(Opts *SweetOptions) error {
 			} else if strings.HasPrefix(string(s), " M") { // existing file w/changes
 				diffRaw, err := exec.Command("git", "diff", "-U4", fileName).Output()
 				if err != nil {
-					return err
+					return fmt.Errorf("Error with 'git diff -U4': %s", err.Error())
 				}
 				if len(diffRaw) > 0 {
 					diffArr := strings.Split(string(diffRaw), "\n")
@@ -66,23 +66,23 @@ func updateDiffs(Opts *SweetOptions) error {
 				}
 				lines, err := exec.Command("git", "diff", "--numstat", fileName).Output()
 				if err != nil {
-					return err
+					return fmt.Errorf("Error with 'git diff --numstat': %s", err.Error())
 				}
 				fields := strings.Fields(string(lines))
 				diff.Added, err = strconv.Atoi(fields[0])
 				if err != nil {
-					return err
+					diff.Added = 0
 				}
 				diff.Removed, err = strconv.Atoi(fields[1])
 				if err != nil {
-					return err
+					diff.Removed = 0
 				}
 
 				stat.Diffs[name] = diff
 			} else if len(string(s)) < 1 {
 				// no changes in this file
 			} else {
-				return fmt.Errorf("unexpected git diff response: %s", s)
+				return fmt.Errorf("Unexpected git diff response: %s", s)
 			}
 		}
 		Opts.StatusSet(stat)
