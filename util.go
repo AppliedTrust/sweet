@@ -11,6 +11,9 @@ import (
 
 //// logging convenience methods
 func (Opts *SweetOptions) LogFatal(message string) {
+	if Opts.Hub != nil {
+		Opts.Hub.broadcast <- event{MessageType: "fatal", Message: message}
+	}
 	if Opts.UseSyslog {
 		Opts.Syslog.Emerg(message)
 	} else {
@@ -19,6 +22,9 @@ func (Opts *SweetOptions) LogFatal(message string) {
 	os.Exit(1)
 }
 func (Opts *SweetOptions) LogErr(message string) {
+	if Opts.Hub != nil {
+		Opts.Hub.broadcast <- event{MessageType: "error", Message: message}
+	}
 	if Opts.UseSyslog {
 		Opts.Syslog.Err(message)
 	} else {
@@ -26,17 +32,13 @@ func (Opts *SweetOptions) LogErr(message string) {
 	}
 }
 func (Opts *SweetOptions) LogInfo(message string) {
+	if Opts.Hub != nil {
+		Opts.Hub.broadcast <- event{MessageType: "log", Message: message}
+	}
 	if Opts.UseSyslog {
 		Opts.Syslog.Info(message)
 	} else {
 		log.Println(ansi.Color(message, "green+b"))
-	}
-}
-func (Opts *SweetOptions) LogChanges(message string) {
-	if Opts.UseSyslog {
-		Opts.Syslog.Info(message)
-	} else {
-		log.Println(ansi.Color(message, "blue+b"))
 	}
 }
 

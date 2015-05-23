@@ -3,6 +3,7 @@ package sweet
 import (
 	"bytes"
 	"errors"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -38,8 +39,10 @@ func expectMulti(untilMulti []string, receive chan string) (string, error) {
 func expectSave(until string, receive chan string) (string, error) {
 	all := ""
 	for !strings.Contains(all, until) {
+		log.Printf("expectSave select")
 		select {
 		case s, exists := <-receive:
+			log.Printf("expectSave got %s, %b", s, exists)
 			if !exists {
 				return "", errors.New("Connection closed unexpectedly.")
 			}
@@ -64,7 +67,7 @@ func expectSaveTimeout(until string, receive chan string, timeout time.Duration)
 				return all, nil
 			}
 		case _ = <-time.After(timeout):
-			return all, nil
+			return all, errors.New("Connection timeout.")
 		}
 	}
 	return all, nil

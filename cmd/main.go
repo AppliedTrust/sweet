@@ -4,6 +4,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"github.com/appliedtrust/sweet"
 	"github.com/docopt/docopt-go"
 	"github.com/vaughan0/go-ini"
@@ -11,10 +12,11 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"time"
 )
 
-const version = "1.3"
+const version = "1.2"
 
 var usage = `sweet: network device backups and change alerts for the 21st century.
 
@@ -36,6 +38,7 @@ Options:
   --timeout <secs>          Device collection timeout in secs (default: 60).
   --web                     Run an HTTP status server.
   --weblisten <host:port>   Host and port to use for HTTP status server (default: localhost:5000).
+  --webauth <user:pass>     Optional user/pass to protect HTTP status server.
   --version                 Show version.
   -h, --help                Show this screen.
 `
@@ -46,9 +49,7 @@ func main() {
 	if err != nil {
 		Opts.LogFatal(err.Error())
 	}
-
-	//go sweet.RunWebserver(&Opts)
-
+	go sweet.RunWebserver(&Opts)
 	sweet.RunCollectors(&Opts)
 }
 
@@ -91,90 +92,125 @@ func setupOptions() (sweet.SweetOptions, error) {
 		return Opts, err
 	}
 
+	section, ok := configFile[""]
+	if !ok {
+		return Opts, err
+	}
+	if _, ok := section["workspace"]; ok {
+		Opts.Workspace = section["workspace"]
+	}
+	if _, ok = section["to"]; ok {
+		Opts.ToEmail = section["to"]
+	}
+	if _, ok = section["from"]; ok {
+		Opts.FromEmail = section["from"]
+	}
+	if _, ok = section["smtp"]; ok {
+		Opts.SmtpString = section["smtp"]
+	}
+	if _, ok = section["weblisten"]; ok {
+		Opts.HttpListen = section["weblisten"]
+	}
+	if _, ok = section["webauth"]; ok {
+		parts := strings.SplitN(":", section["webauth"], 2)
+		if len(parts) != 2 {
+			return Opts, fmt.Errorf("Malformed webauth argument - should be username:pass")
+		}
+		Opts.HttpUser = parts[0]
+		Opts.HttpPass = parts[1]
+	}
+	if _, ok = section["concurrency"]; ok {
+		Opts.Concurrency, err = strconv.Atoi(section["concurrency"])
+		if err != nil {
+			return Opts, err
+		}
+	}
+
+	if boolText, ok := section["insecure"]; ok {
+		if boolText == "true" {
+			Opts.Insecure = true
+		}
+	}
+	if boolText, ok := section["push"]; ok {
+		if boolText == "true" {
+			Opts.GitPush = true
+		}
+	}
+	if boolText, ok := section["syslog"]; ok {
+		if boolText == "true" {
+			Opts.UseSyslog = true
+		}
+	}
+	if boolText, ok := section["web"]; ok {
+		if boolText == "true" {
+			Opts.HttpEnabled = true
+		}
+	}
+	if intervalText, ok := section["interval"]; ok {
+		Opts.Interval, err = time.ParseDuration(intervalText + "s")
+		if err != nil {
+			return Opts, err
+		}
+	}
+	if timeoutText, ok := section["timeout"]; ok {
+		Opts.Timeout, err = time.ParseDuration(timeoutText + "s")
+		if err != nil {
+			return Opts, err
+		}
+	}
+	if d, ok := section["default-user"]; ok {
+		Opts.DefaultUser = d
+	}
+	if d, ok := section["default-pass"]; ok {
+		Opts.DefaultPass = d
+	}
+	if d, ok := section["default-method"]; ok {
+		Opts.DefaultMethod = d
+	}
 	for name, section := range configFile {
-		if len(name) == 0 { // global config
-			_, ok := section["workspace"]
-			if ok {
-				Opts.Workspace = section["workspace"]
-			}
-			_, ok = section["to"]
-			if ok {
-				Opts.ToEmail = section["to"]
-			}
-			_, ok = section["from"]
-			if ok {
-				Opts.FromEmail = section["from"]
-			}
-			_, ok = section["smtp"]
-			if ok {
-				Opts.SmtpString = section["smtp"]
-			}
-			_, ok = section["weblisten"]
-			if ok {
-				Opts.HttpListen = section["weblisten"]
-			}
-			_, ok = section["concurrency"]
-			if ok {
-				Opts.Concurrency, err = strconv.Atoi(section["concurrency"])
-				if err != nil {
-					return Opts, err
-				}
-			}
-
-			boolText, ok := section["insecure"]
-			if ok {
-				if boolText == "true" {
-					Opts.Insecure = true
-				}
-			}
-			boolText, ok = section["push"]
-			if ok {
-				if boolText == "true" {
-					Opts.GitPush = true
-				}
-			}
-			boolText, ok = section["syslog"]
-			if ok {
-				if boolText == "true" {
-					Opts.UseSyslog = true
-				}
-			}
-			boolText, ok = section["web"]
-			if ok {
-				if boolText == "true" {
-					Opts.HttpEnabled = true
-				}
-			}
-			intervalText, ok := section["interval"]
-			if ok {
-				Opts.Interval, err = time.ParseDuration(intervalText + "s")
-				if err != nil {
-					return Opts, err
-				}
-			}
-			timeoutText, ok := section["timeout"]
-			if ok {
-				Opts.Timeout, err = time.ParseDuration(timeoutText + "s")
-				if err != nil {
-					return Opts, err
-				}
-			}
-
-			defaultUser, ok := section["default-user"]
-			if ok {
-				Opts.DefaultUser = defaultUser
-			}
-			defaultPass, ok := section["default-pass"]
-			if ok {
-				Opts.DefaultPass = defaultPass
-			}
-			defaultMethod, ok := section["default-method"]
-			if ok {
-				Opts.DefaultMethod = defaultMethod
-			}
-
+		if len(name) == 0 { // did global config first above
+			continue
 		} else { // device-specific config
 			device := sweet.DeviceConfig{Hostname: name, Method: section["method"], Config: section}
+			if len(device.Method) == 0 {
+				if len(Opts.DefaultMethod) == 0 {
+					return Opts, fmt.Errorf("No method specified for %s and default-method not defined.", device.Hostname)
+				}
+				device.Method = Opts.DefaultMethod
+			}
+
+			// timeouts
+			if _, ok := device.Config["timeout"]; !ok {
+				device.Timeout = Opts.Timeout
+			} else {
+				device.Timeout, err = time.ParseDuration(device.Config["timeout"] + "s")
+				if err != nil {
+					return Opts, fmt.Errorf("Bad timeout setting %s for host %s", device.Config["timeout"], device.Hostname)
+				}
+			}
+			if _, ok := device.Config["user"]; !ok {
+				if len(Opts.DefaultUser) == 0 {
+					return Opts, fmt.Errorf("No user specified for %s and default-user not defined.", device.Hostname)
+				}
+				device.Config["user"] = Opts.DefaultUser
+			}
+			if _, ok := device.Config["pass"]; !ok {
+				if len(Opts.DefaultPass) == 0 {
+					return Opts, fmt.Errorf("No pass specified for %s and default-pass not defined.", device.Hostname)
+				}
+				device.Config["pass"] = Opts.DefaultPass
+			}
+			// use normal pw for enable if enable not specified
+			if _, ok := device.Config["enable"]; !ok {
+				device.Config["enable"] = device.Config["pass"]
+			}
+			device.Target = device.Hostname
+			if _, ok := device.Config["ip"]; ok {
+				device.Target = device.Config["ip"]
+			}
+			if Opts.Insecure {
+				device.Config["insecure"] = "true"
+			}
 			Opts.Devices = append(Opts.Devices, device)
 		}
 	}
@@ -214,6 +250,14 @@ func setupOptions() (sweet.SweetOptions, error) {
 	}
 	if arguments["--weblisten"] != nil {
 		Opts.HttpListen = arguments["--weblisten"].(string)
+	}
+	if arguments["--webauth"] != nil {
+		parts := strings.SplitN(arguments["--webauth"].(string), ":", 2)
+		if len(parts) != 2 {
+			return Opts, fmt.Errorf("Malformed webauth argument - should be username:pass ")
+		}
+		Opts.HttpUser = parts[0]
+		Opts.HttpPass = parts[1]
 	}
 
 	// concurrent collectors

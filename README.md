@@ -1,7 +1,5 @@
 Network device configuration backups and change alerts for the 21st century - inspired by RANCID!
 
-See: http://gosweet.org
-
 ##Features:
 * Stores device configs in Git
 * Simple configuration file

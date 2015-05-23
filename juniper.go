@@ -11,14 +11,8 @@ func newJunOSCollector() Collector {
 	return JunOS{}
 }
 
-func (collector JunOS) Collect(device DeviceConfig) (map[string]string, error) {
-	result := make(map[string]string)
-
-	c, err := newSSHCollector(device)
-	if err != nil {
-		return result, fmt.Errorf("Error connecting to %s: %s", device.Hostname, err.Error())
-	}
-
+func (collector JunOS) Collect(device DeviceConfig, c *Connection) (CollectionResults, error) {
+	result := CollectionResults{}
 	if err := expect("assword:", c.Receive); err != nil {
 		return result, fmt.Errorf("Missing password prompt: %s", err.Error())
 	}
@@ -36,7 +30,7 @@ func (collector JunOS) Collect(device DeviceConfig) (map[string]string, error) {
 		return result, fmt.Errorf("Command 'set cli screen-length 0' failed: %s", err.Error())
 	}
 	c.Send <- "show configuration\n"
-	result["config"], err = expectSaveTimeout("#\n", c.Receive, device.CommandTimeout)
+	result["config"], err = expectSave("#\n", c.Receive)
 	if err != nil {
 		return result, fmt.Errorf("Command 'show configuration' failed: %s", err.Error())
 	}

@@ -40,7 +40,7 @@ func commitChanges(Opts *SweetOptions) error {
 // collect and cleanup diff stats
 func updateDiffs(Opts *SweetOptions) error {
 	for _, device := range Opts.Devices {
-		stat := Opts.Status.Get(device.Hostname)
+		stat := Opts.StatusGet(device.Hostname)
 		stat.Diffs = make(map[string]ConfigDiff)
 		for name, _ := range stat.Configs {
 			diff := ConfigDiff{}
@@ -85,7 +85,7 @@ func updateDiffs(Opts *SweetOptions) error {
 				return fmt.Errorf("unexpected git diff response: %s", s)
 			}
 		}
-		Opts.Status.Set(stat)
+		Opts.StatusSet(stat)
 	}
 	return nil
 }

@@ -12,15 +12,9 @@ func newCiscoCollector() Collector {
 	return Cisco{}
 }
 
-func (collector Cisco) Collect(device DeviceConfig) (map[string]string, error) {
-	result := make(map[string]string)
-
-	c, err := newSSHCollector(device)
-	if err != nil {
-		return result, fmt.Errorf("Error connecting to %s: %s", device.Hostname, err.Error())
-	}
-
-	if err := expect("assword:", c.Receive); err != nil {
+func (collector Cisco) Collect(device DeviceConfig, c *Connection) (CollectionResults, error) {
+	result := CollectionResults{}
+	if _, err := expectSaveTimeout("assword:", c.Receive, device.Timeout); err != nil {
 		return result, fmt.Errorf("Missing password prompt: %s", err.Error())
 	}
 	c.Send <- device.Config["pass"] + "\n"
@@ -50,14 +44,9 @@ func (collector Cisco) Collect(device DeviceConfig) (map[string]string, error) {
 		return result, fmt.Errorf("Command 'terminal pager 0' failed: %s", err.Error())
 	}
 	c.Send <- "show running-config\n"
-	result["config"], err = expectSaveTimeout("#", c.Receive, device.CommandTimeout)
+	result["config"], err = expectSave("#", c.Receive)
 	if err != nil {
 		return result, fmt.Errorf("Command 'show running-config' failed: %s", err.Error())
-	}
-	c.Send <- "show version\n"
-	result["version"], err = expectSaveTimeout("#", c.Receive, device.CommandTimeout)
-	if err != nil {
-		return result, fmt.Errorf("Command 'show version' failed: %s", err.Error())
 	}
 
 	// cleanup config results
@@ -65,6 +54,5 @@ func (collector Cisco) Collect(device DeviceConfig) (map[string]string, error) {
 	result["config"] = strings.TrimSpace(strings.TrimPrefix(result["config"], "Building configuration..."))
 
 	c.Send <- "exit\n"
-
 	return result, nil
 }

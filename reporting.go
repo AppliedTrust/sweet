@@ -15,27 +15,28 @@ func runReporter(Opts *SweetOptions) error {
 
 	// print changes to log
 	for _, device := range Opts.Devices {
-		stat := Opts.Status.Get(device.Hostname)
+		stat := Opts.StatusGet(device.Hostname)
+		str := ""
 		if stat.State == StateSuccess {
 			if len(stat.Diffs) < 1 {
-				changeReport += fmt.Sprintf("%s: no changes\n", device.Hostname)
+				str = fmt.Sprintf("%s: no changes\n", device.Hostname)
 			} else {
-				changeReport += fmt.Sprintf("%s: changes!\n", device.Hostname)
+				str = fmt.Sprintf("%s: changes!\n", device.Hostname)
 				for name, d := range stat.Diffs {
 					if d.NewFile {
-						changeReport += fmt.Sprintf("\t%s: new config\n", name)
+						str += fmt.Sprintf("\t%s: new config\n", name)
 					} else {
-						changeReport += fmt.Sprintf("\t%s: +%d -%d\n", name, d.Added, d.Removed)
+						str += fmt.Sprintf("\t%s: +%d -%d\n", name, d.Added, d.Removed)
 						changeDiffs += fmt.Sprintf("\n---- Diff for %s %s:\n", device.Hostname, name)
 						changeDiffs += fmt.Sprintf("%s\n", d.Diff)
 					}
 				}
 			}
 		} else {
-			changeReport += fmt.Sprintf("%s: error: %s\n", device.Hostname, stat.ErrorMessage)
+			str = fmt.Sprintf("%s: error: %s\n", device.Hostname, stat.ErrorMessage)
 		}
+		changeReport += str
 	}
-	Opts.LogChanges(changeReport)
 
 	// Send email notification here
 	if len(Opts.ToEmail) > 0 && len(Opts.FromEmail) > 0 {

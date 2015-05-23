@@ -9,13 +9,19 @@ all: bindata binaries packages
 binaries: bindata linux32 linux64 darwin64
 
 bindata:
-	GOOS=linux GOARCH=amd64 go-bindata -pkg="sweet" tmpl/ static/
+	cd frontend && ember build --environment=production
+	GOOS=linux GOARCH=amd64 go-bindata -pkg="sweet" frontend/dist/...
 
 linux64: bindata
 	GOOS=linux GOARCH=amd64 go build -o bin/sweet64 cmd/main.go
 
 darwin64: bindata
 	GOOS=darwin GOARCH=amd64 go build -o bin/sweet-osx cmd/main.go
+
+####
+deps:
+	go get github.com/vaughan0/go-ini github.com/docopt/docopt-go github.com/kballard/go-shellquote github.com/kr/pty github.com/mgutz/ansi
+	go get github.com/gorilla/handlers github.com/gorilla/mux github.com/gorilla/websocket github.com/goji/httpauth
 
 ####
 packages: rpm32 deb32 rpm64 deb64
@@ -53,7 +59,6 @@ release:
 	github-release release --user appliedtrust --repo sweet --tag $(VERSION) \
 		--name "Sweet $(VERSION)" \
 		--description "Network device configuration backups and change alerts for the 21st century." \
-		--pre-release
 	github-release upload --user appliedtrust --repo sweet --tag $(VERSION) \
 		--name "sweet-linux-32" \
 		--file bin/sweet32

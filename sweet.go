@@ -1,34 +1,26 @@
 package sweet
 
-// sweet.go: network device backups and change alerts for the 21st century - inspired by RANCID.
+//TODO: tests, yo
 
+// sweet.go: network device backups and change alerts for the 21st century - inspired by RANCID.
 import (
+	"bufio"
 	"fmt"
 	"github.com/kr/pty"
 	"io"
 	"io/ioutil"
+	"log"
 	"log/syslog"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"time"
 )
 
-const (
-	recentHours = 12
-)
-
-// DeviceAccess stores host access info
-type DeviceConfig struct {
-	Hostname       string
-	Method         string
-	Target         string
-	Timeout        time.Duration
-	CommandTimeout time.Duration
-	Config         map[string]string
-}
-
 type DeviceStatusState int
+
+const recentHours = 12
 
 const (
 	StatePending DeviceStatusState = iota
@@ -37,6 +29,16 @@ const (
 	StateSuccess
 )
 
+// DeviceConfig stores a device's access info
+type DeviceConfig struct {
+	Hostname string
+	Method   string
+	Target   string
+	Timeout  time.Duration
+	Config   map[string]string `json:"-"`
+}
+
+// ConfigDiff stores changes in individual device configs
 type ConfigDiff struct {
 	Diff    string
 	Added   int
@@ -44,6 +46,7 @@ type ConfigDiff struct {
 	NewFile bool
 }
 
+// DeviceStatus stores the status of a single device
 type DeviceStatus struct {
 	Device       DeviceConfig
 	State        DeviceStatusState
@@ -52,25 +55,21 @@ type DeviceStatus struct {
 	Diffs        map[string]ConfigDiff
 	ErrorMessage string
 }
+
+// Status provides a global, lockable DeviceStatus for all devices
 type Status struct {
 	Status map[string]DeviceStatus
 	Lock   sync.Mutex
 }
 
-// ReportWebData options for formatting web status page.
-type WebReport struct {
-	DeviceStatus
-	Class          string
-	CSSID          string
-	EnableDiffLink bool
-	EnableConfLink bool
-}
-
-type SSHCollector struct {
+// Connection handles a single SSH or shell session with a device
+type Connection struct {
 	Receive chan string
 	Send    chan string
+	Cmd     *exec.Cmd
 }
 
+// SweetOptions stores user-configurable settings
 type SweetOptions struct {
 	Interval      time.Duration
 	Timeout       time.Duration
@@ -86,138 +85,88 @@ type SweetOptions struct {
 	FromEmail     string
 	UseSyslog     bool
 	DefaultUser   string
-	DefaultPass   string
+	DefaultPass   string `json:"-"`
 	DefaultMethod string
-	Syslog        *syslog.Writer
+	HttpUser      string `json:"-"`
+	HttpPass      string `json:"-"`
 	Devices       []DeviceConfig
-	Status        *Status
+	Syslog        *syslog.Writer `json:"-"`
+	Status        *Status        `json:"-"`
+	Hub           *Hub           `json:"-"`
 }
 
+// CollectionResults contains device configs for a single device
+type CollectionResults map[string]string
+
+// a Collector can use a device and SSH connection to return collection results
 type Collector interface {
-	Collect(device DeviceConfig) (map[string]string, error)
+	Collect(device DeviceConfig, conn *Connection) (CollectionResults, error)
 }
 
-//// Kickoff collector runs
+// RunCollectors kicks off collector runs for all devices on a schedule
 func RunCollectors(Opts *SweetOptions) {
-	collectorSlots := make(chan bool, Opts.Concurrency)
 	for {
 		end := time.Now().Add(Opts.Interval)
 		Opts.LogInfo(fmt.Sprintf("Starting %d collectors. [concurrency=%d]", len(Opts.Devices), Opts.Concurrency))
-
+		collectorSlots := make(chan bool, Opts.Concurrency)
+		collectorDones := make(chan bool)
 		go func() {
 			for _, device := range Opts.Devices {
 				collectorSlots <- true
-				status := DeviceStatus{}
-				status.Device = device
-				status.When = time.Now()
-				status.State = StatePending
-				Opts.Status.Set(status)
+				device := device
+				go func() {
+					Opts.LogInfo(fmt.Sprintf("Starting collector: %s", device.Hostname))
+					status := DeviceStatus{}
+					status.Device = device
+					status.When = time.Now()
+					status.State = StatePending
+					Opts.StatusSet(status)
 
-				Opts.LogInfo(fmt.Sprintf("Starting collector: %s", device.Hostname))
-				status = collectDevice(device, Opts)
-				Opts.LogInfo(fmt.Sprintf("Finished collector: %s", device.Hostname))
-				Opts.Status.Set(status)
+					status = collectDevice(device, Opts)
+					Opts.StatusSet(status)
+					Opts.LogInfo(fmt.Sprintf("Finished collector: %s", device.Hostname))
+					_ = <-collectorSlots
+					collectorDones <- true
+				}()
 			}
-			Opts.LogInfo(fmt.Sprintf("All %d collectors finished.", len(Opts.Devices)))
-			if err := updateDiffs(Opts); err != nil {
-				Opts.LogFatal(err.Error())
-			}
-			if err := commitChanges(Opts); err != nil {
-				Opts.LogFatal(err.Error())
-			}
-			if err := runReporter(Opts); err != nil {
-				Opts.LogFatal(err.Error())
-			}
-			if Opts.Interval == 0 {
-				Opts.LogInfo("Interval set to 0 - exiting.")
-				os.Exit(0)
-			}
+			Opts.LogInfo(fmt.Sprintf("Started all %d collectors.", len(Opts.Devices)))
 		}()
-		Opts.LogInfo(fmt.Sprintf("Waiting for %d collectors.", len(Opts.Devices)))
 		for i := 0; i < len(Opts.Devices); i++ {
-			_ = <-collectorSlots
-			//Opts.LogInfo(fmt.Sprintf("Collector returned."))
+			_ = <-collectorDones
 		}
-		Opts.LogInfo(fmt.Sprintf("Started all %d collectors.", len(Opts.Devices)))
+		Opts.LogInfo(fmt.Sprintf("All %d collectors finished.", len(Opts.Devices)))
+		if err := updateDiffs(Opts); err != nil {
+			Opts.LogFatal(fmt.Sprintf("Fatal error updating config diffs: %s", err.Error()))
+		}
+		if err := commitChanges(Opts); err != nil {
+			Opts.LogFatal(fmt.Sprintf("Fatal error commiting changes with git: %s", err.Error()))
+		}
+		if err := runReporter(Opts); err != nil {
+			Opts.LogFatal(fmt.Sprintf("Fatal error sending email report: %s", err.Error()))
+		}
+		if Opts.Interval == 0 {
+			Opts.LogInfo("Interval set to 0 - exiting.")
+			os.Exit(0)
+		}
 		if end.After(time.Now()) {
+			Opts.LogInfo(fmt.Sprintf("Sleeping %d seconds.", int(end.Sub(time.Now()).Seconds())))
 			time.Sleep(end.Sub(time.Now()))
 		}
 	}
 }
 
-//// Get and save config from a single device
+// collectDevice gets and saves config from a single device
 func collectDevice(device DeviceConfig, Opts *SweetOptions) DeviceStatus {
-	var err error
-
 	status := DeviceStatus{}
 	status.Device = device
 	status.When = time.Now()
-
-	if len(device.Method) == 0 {
-		if len(Opts.DefaultMethod) == 0 {
-			status.State = StateError
-			status.ErrorMessage = fmt.Sprintf("No method specified for %s and default-method not defined.", device.Hostname)
-			return status
-		}
-		device.Method = Opts.DefaultMethod
-	}
-
-	// override timeouts in device configs
-	device.Timeout = Opts.Timeout
-	_, ok := device.Config["timeout"]
-	if ok {
-		device.Timeout, err = time.ParseDuration(device.Config["timeout"] + "s")
-		if err != nil {
-			status.State = StateError
-			status.ErrorMessage = fmt.Sprintf("Bad timeout setting %s for host %s", device.Config["timeout"], device.Hostname)
-			return status
-		}
-	}
-	device.CommandTimeout = Opts.Timeout
-	_, ok = device.Config["commandtimeout"]
-	if ok {
-		device.CommandTimeout, err = time.ParseDuration(device.Config["commandtimeout"] + "s")
-		if err != nil {
-			status.State = StateError
-			status.ErrorMessage = fmt.Sprintf("Bad command timeout setting %s for host %s", device.Config["commandtimeout"], device.Hostname)
-			return status
-		}
-	}
-	// setup collection options
-	_, ok = device.Config["user"]
-	if !ok {
-		if len(Opts.DefaultUser) == 0 {
-			status.State = StateError
-			status.ErrorMessage = fmt.Sprintf("No user specified for %s and default-user not defined.", device.Hostname)
-			return status
-		}
-		device.Config["user"] = Opts.DefaultUser
-	}
-	_, ok = device.Config["pass"]
-	if !ok {
-		if len(Opts.DefaultPass) == 0 {
-			status.State = StateError
-			status.ErrorMessage = fmt.Sprintf("No pass specified for %s and default-pass not defined.", device.Hostname)
-			return status
-		}
-		device.Config["pass"] = Opts.DefaultPass
-	}
-	_, ok = device.Config["enable"]
-	if !ok {
-		device.Config["enable"] = device.Config["pass"]
-	}
-	device.Target = device.Hostname
-	_, ok = device.Config["ip"]
-	if ok {
-		device.Target = device.Config["ip"]
-	}
-	if Opts.Insecure {
-		device.Config["insecure"] = "true"
-	}
+	status.State = StateError
 
 	var c Collector
 	if device.Method == "cisco" {
 		c = newCiscoCollector()
+	} else if device.Method == "junos" {
+		c = newJunOSCollector()
 	} else if device.Method == "external" {
 		// handle absolute and relative script paths
 		device.Config["scriptPath"] = device.Config["script"]
@@ -225,19 +174,34 @@ func collectDevice(device DeviceConfig, Opts *SweetOptions) DeviceStatus {
 			device.Config["scriptPath"] = Opts.ExecutableDir + string(os.PathSeparator) + device.Config["script"]
 		}
 		c = newExternalCollector()
-	} else if device.Method == "junos" {
-		c = newJunOSCollector()
 	} else {
 		status.State = StateError
-		status.ErrorMessage = fmt.Sprintf("Unknown access method: %s", device.Method)
+		status.ErrorMessage = fmt.Sprintf("Unknown access method for %s: %s", device.Hostname, device.Method)
 		return status
 	}
-
 	var collectionResults map[string]string
 	r := make(chan map[string]string)
 	e := make(chan error)
+	session, err := newConnection(device) // TODO: external ExternalCollector doesn't need a SSH connection!
+	if err != nil {
+		status.ErrorMessage = fmt.Sprintf("Unable to connect to %s at %s", device.Hostname, device.Target)
+		Opts.LogErr(status.ErrorMessage)
+		return status
+	}
+	defer func() {
+		close(session.Send)
+		close(session.Receive)
+		close(r)
+		close(e)
+		if err := session.Cmd.Process.Kill(); err != nil {
+			log.Printf("Error killing ssh process")
+		}
+		if err := session.Cmd.Wait(); err != nil {
+			//log.Printf("Error waiting for ssh exit")
+		}
+	}()
 	go func() {
-		result, err := c.Collect(device)
+		result, err := c.Collect(device, session)
 		if err != nil {
 			e <- err
 		} else {
@@ -246,23 +210,18 @@ func collectDevice(device DeviceConfig, Opts *SweetOptions) DeviceStatus {
 	}()
 	select {
 	case collectionResults = <-r:
-	case <-time.After(Opts.Timeout):
-		status.State = StateError
-		status.ErrorMessage = fmt.Sprintf("collection timeout after %d seconds", int(device.Timeout.Seconds()))
-		return status
 	case err := <-e:
-		status.State = StateError
-		status.ErrorMessage = fmt.Sprintf("collection error: %s", err.Error())
+		status.ErrorMessage = fmt.Sprintf("Collection error for %s: %s", device.Hostname, err.Error())
+		Opts.LogErr(status.ErrorMessage)
 		return status
 	}
 
 	// save the collectionResults to the workspace
 	for name, val := range collectionResults {
 		Opts.LogInfo(fmt.Sprintf("Saving result: %s %s", device.Hostname, name))
-		err = ioutil.WriteFile(device.Hostname+"-"+cleanName(name), []byte(val), 0644)
-		if err != nil {
-			status.State = StateError
+		if err := ioutil.WriteFile(device.Hostname+"-"+cleanName(name), []byte(val), 0644); err != nil {
 			status.ErrorMessage = fmt.Sprintf("Error saving %s result to workspace: %s", name, err.Error())
+			Opts.LogErr(status.ErrorMessage)
 			return status
 		}
 	}
@@ -271,29 +230,37 @@ func collectDevice(device DeviceConfig, Opts *SweetOptions) DeviceStatus {
 	return status
 }
 
-func newSSHCollector(device DeviceConfig) (*SSHCollector, error) {
-	c := new(SSHCollector)
+// newConnection establishes a connection to a device
+func newConnection(device DeviceConfig) (*Connection, error) {
+	c := new(Connection)
 	c.Receive = make(chan string)
 	c.Send = make(chan string)
-
-	var cmd *exec.Cmd
 	_, ok := device.Config["insecure"]
 	if ok && device.Config["insecure"] == "true" {
-		cmd = exec.Command("ssh", "-oStrictHostKeyChecking=no", device.Config["user"]+"@"+device.Target)
+		c.Cmd = exec.Command("ssh", "-oStrictHostKeyChecking=no", device.Config["user"]+"@"+device.Target)
 	} else {
-		cmd = exec.Command("ssh", device.Config["user"]+"@"+device.Target)
+		c.Cmd = exec.Command("ssh", device.Config["user"]+"@"+device.Target)
 	}
 
-	f, err := pty.Start(cmd)
+	f, err := pty.Start(c.Cmd)
 	if err != nil {
 		return c, err
 	}
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("Error reading from SSH connection: %s", r)
+			}
+			f.Close()
+		}()
+		reader := bufio.NewReader(f)
 		for {
-			str, err := readChunk(f)
+			str, err := reader.ReadString('\n')
 			if err != nil {
-				close(c.Receive)
+				if err != io.EOF {
+					log.Printf("Error reading from SSH connection: %s", err.Error())
+				}
 				return
 			}
 			c.Receive <- str
@@ -301,6 +268,12 @@ func newSSHCollector(device DeviceConfig) (*SSHCollector, error) {
 	}()
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("Error writing to SSH connection: %s", r)
+			}
+			f.Close()
+		}()
 		for {
 			select {
 			case command, exists := <-c.Send:
@@ -308,37 +281,51 @@ func newSSHCollector(device DeviceConfig) (*SSHCollector, error) {
 					if !exists {
 						return
 					}
-					_, err := io.WriteString(f, command)
+					_, err := f.Write([]byte(command))
 					if err != nil {
-						panic("send error")
+						if err != io.EOF {
+							log.Printf("Error writing to SSH connection: %s", err.Error())
+						}
+						return
 					}
 				}
 			}
 		}
 	}()
-
 	return c, nil
 }
 
-func (s *Status) Get(device string) DeviceStatus {
+// StatusGet safely gets a device's status from global state
+func (Opts *SweetOptions) StatusGet(device string) DeviceStatus {
 	defer func() {
-		s.Lock.Unlock()
+		Opts.Status.Lock.Unlock()
 	}()
-	s.Lock.Lock()
-	return s.Status[device]
-}
-func (s *Status) GetAll() map[string]DeviceStatus {
-	defer func() {
-		s.Lock.Unlock()
-	}()
-	s.Lock.Lock()
-	return s.Status
+	Opts.Status.Lock.Lock()
+	return Opts.Status.Status[device]
 }
 
-func (s *Status) Set(stat DeviceStatus) {
+// StatusGetAll safely gets all devices' status from global state
+func (Opts *SweetOptions) StatusGetAll() map[string]DeviceStatus {
 	defer func() {
-		s.Lock.Unlock()
+		Opts.Status.Lock.Unlock()
 	}()
-	s.Lock.Lock()
-	s.Status[stat.Device.Hostname] = stat
+	Opts.Status.Lock.Lock()
+	return Opts.Status.Status
+}
+
+// StatusSet safely sets a device's status in global state
+func (Opts *SweetOptions) StatusSet(stat DeviceStatus) {
+	if Opts.Hub != nil {
+		Opts.Hub.broadcast <- event{MessageType: "device", Device: deviceId(stat.Device.Hostname), Status: stat}
+	}
+	defer func() {
+		Opts.Status.Lock.Unlock()
+	}()
+	Opts.Status.Lock.Lock()
+	Opts.Status.Status[stat.Device.Hostname] = stat
+}
+
+// deviceId provides a clean device id for use in the frontend
+func deviceId(d string) string {
+	return strings.Replace(d, ".", "", -1)
 }
