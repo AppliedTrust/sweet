@@ -48,13 +48,13 @@ type ConfigDiff struct {
 
 // DeviceStatus stores the status of a single device
 type DeviceStatus struct {
-	Device        DeviceConfig
-	State         DeviceStatusState
-	StatePrevious DeviceStatusState
-	When          time.Time
-	Configs       map[string]string
-	Diffs         map[string]ConfigDiff
-	ErrorMessage  string
+	Device       DeviceConfig
+	State        DeviceStatusState
+	StateIsError bool
+	When         time.Time
+	Configs      map[string]string
+	Diffs        map[string]ConfigDiff
+	ErrorMessage string
 }
 
 // Status provides a global, lockable DeviceStatus for all devices
@@ -120,7 +120,6 @@ func RunCollectors(Opts *SweetOptions) {
 					status := DeviceStatus{}
 					status.Device = device
 					status.When = time.Now()
-					status.StatePrevious = status.State
 					status.State = StatePending
 					Opts.StatusSet(status)
 
@@ -162,7 +161,7 @@ func collectDevice(device DeviceConfig, Opts *SweetOptions) DeviceStatus {
 	status := DeviceStatus{}
 	status.Device = device
 	status.When = time.Now()
-	status.StatePrevious = status.State
+	status.StateIsError = true
 	status.State = StateError
 
 	var c Collector
@@ -178,9 +177,8 @@ func collectDevice(device DeviceConfig, Opts *SweetOptions) DeviceStatus {
 		}
 		c = newExternalCollector()
 	} else {
-		status.StatePrevious = status.State
-		status.State = StateError
 		status.ErrorMessage = fmt.Sprintf("Unknown access method for %s: %s", device.Hostname, device.Method)
+		Opts.LogErr(status.ErrorMessage)
 		return status
 	}
 	var collectionResults map[string]string
@@ -198,11 +196,9 @@ func collectDevice(device DeviceConfig, Opts *SweetOptions) DeviceStatus {
 		close(r)
 		close(e)
 		if err := session.Cmd.Process.Kill(); err != nil {
-			log.Printf("Error killing ssh process")
+			Opts.LogErr("Error killing ssh process")
 		}
-		if err := session.Cmd.Wait(); err != nil {
-			//log.Printf("Error waiting for ssh exit")
-		}
+		_ = session.Cmd.Wait()
 	}()
 	go func() {
 		result, err := c.Collect(device, session)
@@ -229,7 +225,8 @@ func collectDevice(device DeviceConfig, Opts *SweetOptions) DeviceStatus {
 			return status
 		}
 	}
-	status.StatePrevious = status.State
+	status.StateIsError = false
+	log.Printf("StateIsError: %t", status.StateIsError)
 	status.State = StateSuccess
 	status.Configs = collectionResults
 	return status
@@ -305,6 +302,7 @@ func (Opts *SweetOptions) StatusGet(device string) DeviceStatus {
 		Opts.Status.Lock.Unlock()
 	}()
 	Opts.Status.Lock.Lock()
+	log.Printf("StatusGet: %v", Opts.Status.Status[device])
 	return Opts.Status.Status[device]
 }
 
@@ -314,6 +312,7 @@ func (Opts *SweetOptions) StatusGetAll() map[string]DeviceStatus {
 		Opts.Status.Lock.Unlock()
 	}()
 	Opts.Status.Lock.Lock()
+	log.Printf("StatusGetAll: %v", Opts.Status.Status)
 	return Opts.Status.Status
 }
 
@@ -327,6 +326,7 @@ func (Opts *SweetOptions) StatusSet(stat DeviceStatus) {
 	}()
 	Opts.Status.Lock.Lock()
 	Opts.Status.Status[stat.Device.Hostname] = stat
+	log.Printf("StatusSet: %v", Opts.Status.Status[stat.Device.Hostname])
 }
 
 // deviceId provides a clean device id for use in the frontend
