@@ -18,7 +18,7 @@ func newExternalCollector() Collector {
 }
 
 func (collector External) Collect(device DeviceConfig, c *Connection) (CollectionResults, error) {
-	var cmd *exec.Cmd // TODO - move this to newConnection!!
+	var cmd *exec.Cmd
 	result := CollectionResults{}
 
 	commandParts, err := shellquote.Split(device.Config["scriptPath"])
