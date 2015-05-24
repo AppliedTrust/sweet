@@ -182,7 +182,7 @@ func collectDevice(device DeviceConfig, Opts *SweetOptions) DeviceStatus {
 	var collectionResults map[string]string
 	r := make(chan map[string]string)
 	e := make(chan error)
-	session, err := newConnection(device) // TODO: external ExternalCollector doesn't need a SSH connection!
+	session, err := newConnection(device)
 	if err != nil {
 		status.ErrorMessage = fmt.Sprintf("Unable to connect to %s at %s", device.Hostname, device.Target)
 		Opts.LogErr(status.ErrorMessage)
@@ -232,6 +232,9 @@ func collectDevice(device DeviceConfig, Opts *SweetOptions) DeviceStatus {
 // newConnection establishes a connection to a device
 func newConnection(device DeviceConfig) (*Connection, error) {
 	c := Connection{}
+	if device.Method == "external" {
+		return &c, nil
+	}
 	c.Receive = make(chan string)
 	c.Send = make(chan string)
 	if _, ok := device.Config["insecure"]; ok && device.Config["insecure"] == "true" {
@@ -316,7 +319,6 @@ func (Opts *SweetOptions) StatusGetAll() map[string]DeviceStatus {
 // StatusSet safely sets a device's status in global state
 func (Opts *SweetOptions) StatusSet(stat DeviceStatus) {
 	if Opts.Hub != nil {
-		log.Printf("StatusSet: %v", stat)
 		Opts.Hub.broadcast <- event{MessageType: "device", Device: deviceId(stat.Device.Hostname), Status: stat}
 	}
 	defer func() {

@@ -5,6 +5,5 @@ export default DS.Model.extend({
   state: DS.attr('string'),
   isPending: DS.attr('bool'),
   isError: DS.attr('bool'),
-  message: DS.attr('string'),
-  when: DS.attr('date')
+  errorMessage: DS.attr('string')
 });

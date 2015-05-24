@@ -10,7 +10,6 @@ export default Ember.ArrayController.extend({
 			console.log('Websocket opened', socketEvent);
 		},
 		onmessage: function(evt) {
-			//console.log('Websocket msg', evt);
 			var m = JSON.parse(evt.data);
 			var now = moment().format('HH:mm:ss');
 			if ( m.messageType && m.messageType === "log") {
@@ -23,6 +22,7 @@ export default Ember.ArrayController.extend({
 				Ember.$("#log").prepend("<li><span class='logdate'>"+ now +"</span> <span class='error'>"+m.messageData+"</span></li>");
 				this.logcount++;
 			} else if ( m.messageType && m.messageType === "device") {
+			  console.log('D', m);
 				var pending = false;
 				if (m.status.State===0) {
 					pending = true;
@@ -36,14 +36,12 @@ export default Ember.ArrayController.extend({
 					"hostname": m.status.Device.Hostname,
 					"isPending": pending,
 					"isError": error,
+					"errorMessage": m.status.ErrorMessage,
 					"state": stateMapping[m.status.State]
 				});
 			} else if ( (m.messageType && m.messageType === "metric") && (this.get("showstats")===true) ) {
-				if (m.device === "goroutines") {
-					Ember.$("#numgoroutines").html(m.messageData);
-				} else {
-					console.log(m);
-				}
+				Ember.$("#numgoroutines").html(m.metrics.goroutines);
+				Ember.$("#numdevices").html(m.metrics.devices);
 		  }
 			if (this.logcount > 80) {
 				Ember.$("#log li").last().remove();

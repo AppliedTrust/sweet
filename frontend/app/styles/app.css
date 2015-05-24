@@ -26,3 +26,6 @@ body {
 .hostname {
   font-weight: 700;
 }
+.errormessage {
+  font-weight: 700;
+}

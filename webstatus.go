@@ -53,7 +53,9 @@ func RunWebserver(Opts *SweetOptions) {
 		go func() {
 			for {
 				time.Sleep(time.Second)
-				Opts.Hub.broadcast <- event{MessageType: "metric", Device: "goroutines", Message: fmt.Sprintf("%d", runtime.NumGoroutine())}
+				metrics := map[string]string{"goroutines": fmt.Sprintf("%d", runtime.NumGoroutine())}
+				metrics["devices"] = "123" // TODO
+				Opts.Hub.broadcast <- event{MessageType: "metric", Device: "", Metrics: metrics}
 			}
 		}()
 
@@ -70,10 +72,11 @@ var Upgrader = websocket.Upgrader{
 type WsHandlerFunc func(*http.Request, *websocket.Conn)
 
 type event struct {
-	MessageType string       `json:"messageType"`
-	Message     string       `json:"messageData"`
-	Device      string       `json:"device"`
-	Status      DeviceStatus `json:"status"`
+	MessageType string            `json:"messageType"`
+	Message     string            `json:"messageData"`
+	Device      string            `json:"device"`
+	Status      DeviceStatus      `json:"status"`
+	Metrics     map[string]string `json:"metrics"`
 }
 type connection struct {
 	ws   *websocket.Conn
@@ -84,7 +87,6 @@ type Hub struct {
 	broadcast   chan event           // Inbound messages from the connections.
 	register    chan *connection     // Register requests from the connections.
 	unregister  chan *connection     // Unregister requests from connections.
-	lightSwitch bool
 	lock        sync.Mutex
 }
 
@@ -104,11 +106,7 @@ func (Opts *SweetOptions) websocketHandler(r *http.Request, ws *websocket.Conn) 
 				break
 			}
 			switch string(message) {
-			case "lightswitch":
-				Opts.Hub.lock.Lock()
-				Opts.Hub.lightSwitch = false
-				Opts.Hub.lock.Unlock()
-				Opts.Hub.broadcast <- event{MessageType: "metric", Message: ""}
+			case "":
 			default:
 				Opts.LogErr(fmt.Sprintf("ReadMessage unrecognized command %v", message))
 			}

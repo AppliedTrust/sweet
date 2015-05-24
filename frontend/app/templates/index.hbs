@@ -10,7 +10,10 @@
 					{{device.hostname}}
 				</div>
 				<div class="col-xs-4">
-					{{device.state}} 
+					{{device.state}}
+					{{#if device.isError}}
+						<br><span class="errormessage">{{device.errorMessage}}</span>
+					{{/if}}
 				</div>
 				<div class="col-xs-4">
 					{{#if device.isPending}}
@@ -32,6 +35,7 @@
 			<div class="" id="statscontainer">
 				<h2>Stats</h2>
 				<div class="well stats">
+					Devices: <span id="numdevices"></span><br>
 					Goroutines: <span id="numgoroutines"></span>
 				</div>
 			</div>

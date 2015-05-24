@@ -10,7 +10,7 @@ binaries: bindata linux32 linux64 darwin64
 
 bindata:
 	cd frontend && ember build --environment=production && cd ..
-	GOOS=linux GOARCH=amd64 go-bindata -pkg="sweet" frontend/dist/...
+	go-bindata -pkg="sweet" frontend/dist/...
 
 linux64: bindata
 	GOOS=linux GOARCH=amd64 go build -o bin/sweet64 cmd/main.go
