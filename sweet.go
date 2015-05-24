@@ -50,7 +50,7 @@ type ConfigDiff struct {
 type DeviceStatus struct {
 	Device       DeviceConfig
 	State        DeviceStatusState
-	StateIsError bool
+	StateIsError int
 	When         time.Time
 	Configs      map[string]string
 	Diffs        map[string]ConfigDiff
@@ -117,13 +117,8 @@ func RunCollectors(Opts *SweetOptions) {
 				device := device
 				go func() {
 					Opts.LogInfo(fmt.Sprintf("Starting collector: %s", device.Hostname))
-					status := DeviceStatus{}
-					status.Device = device
-					status.When = time.Now()
-					status.State = StatePending
-					Opts.StatusSet(status)
-
-					status = collectDevice(device, Opts)
+					Opts.StatusPendingSet(device)
+					status := collectDevice(device, Opts)
 					Opts.StatusSet(status)
 					Opts.LogInfo(fmt.Sprintf("Finished collector: %s", device.Hostname))
 					_ = <-collectorSlots
@@ -136,9 +131,12 @@ func RunCollectors(Opts *SweetOptions) {
 			_ = <-collectorDones
 		}
 		Opts.LogInfo(fmt.Sprintf("All %d collectors finished.", len(Opts.Devices)))
-		if err := updateDiffs(Opts); err != nil {
-			Opts.LogFatal(fmt.Sprintf("Fatal error updating config diffs: %s", err.Error()))
-		}
+		/*
+			TODO
+			if err := updateDiffs(Opts); err != nil {
+				Opts.LogFatal(fmt.Sprintf("Fatal error updating config diffs: %s", err.Error()))
+			}
+		*/
 		if err := commitChanges(Opts); err != nil {
 			Opts.LogFatal(fmt.Sprintf("Fatal error commiting changes with git: %s", err.Error()))
 		}
@@ -161,7 +159,7 @@ func collectDevice(device DeviceConfig, Opts *SweetOptions) DeviceStatus {
 	status := DeviceStatus{}
 	status.Device = device
 	status.When = time.Now()
-	status.StateIsError = true
+	status.StateIsError = 1
 	status.State = StateError
 
 	var c Collector
@@ -225,8 +223,7 @@ func collectDevice(device DeviceConfig, Opts *SweetOptions) DeviceStatus {
 			return status
 		}
 	}
-	status.StateIsError = false
-	log.Printf("StateIsError: %t", status.StateIsError)
+	status.StateIsError = 0
 	status.State = StateSuccess
 	status.Configs = collectionResults
 	return status
@@ -302,7 +299,7 @@ func (Opts *SweetOptions) StatusGet(device string) DeviceStatus {
 		Opts.Status.Lock.Unlock()
 	}()
 	Opts.Status.Lock.Lock()
-	log.Printf("StatusGet: %v", Opts.Status.Status[device])
+	//	log.Printf("StatusGet: %v", Opts.Status.Status[device])
 	return Opts.Status.Status[device]
 }
 
@@ -312,13 +309,14 @@ func (Opts *SweetOptions) StatusGetAll() map[string]DeviceStatus {
 		Opts.Status.Lock.Unlock()
 	}()
 	Opts.Status.Lock.Lock()
-	log.Printf("StatusGetAll: %v", Opts.Status.Status)
+	//	log.Printf("StatusGetAll: %v", Opts.Status.Status)
 	return Opts.Status.Status
 }
 
 // StatusSet safely sets a device's status in global state
 func (Opts *SweetOptions) StatusSet(stat DeviceStatus) {
 	if Opts.Hub != nil {
+		log.Printf("StatusSet: %v", stat)
 		Opts.Hub.broadcast <- event{MessageType: "device", Device: deviceId(stat.Device.Hostname), Status: stat}
 	}
 	defer func() {
@@ -326,7 +324,20 @@ func (Opts *SweetOptions) StatusSet(stat DeviceStatus) {
 	}()
 	Opts.Status.Lock.Lock()
 	Opts.Status.Status[stat.Device.Hostname] = stat
-	log.Printf("StatusSet: %v", Opts.Status.Status[stat.Device.Hostname])
+}
+
+// StatusPendingSet safely sets a device's pending status in global state
+func (Opts *SweetOptions) StatusPendingSet(device DeviceConfig) {
+	defer func() {
+		Opts.Status.Lock.Unlock()
+	}()
+	Opts.Status.Lock.Lock()
+	s := Opts.Status.Status[device.Hostname]
+	s.State = StatePending
+	Opts.Status.Status[device.Hostname] = s
+	if Opts.Hub != nil {
+		Opts.Hub.broadcast <- event{MessageType: "device", Device: deviceId(device.Hostname), Status: s}
+	}
 }
 
 // deviceId provides a clean device id for use in the frontend

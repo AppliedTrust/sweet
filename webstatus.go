@@ -1,8 +1,5 @@
 package sweet
 
-//import "github.com/kr/pretty"
-//log.Printf("%# v", pretty.Formatter(r))
-
 import (
 	"bytes"
 	"fmt"

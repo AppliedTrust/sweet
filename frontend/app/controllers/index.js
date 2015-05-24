@@ -23,13 +23,12 @@ export default Ember.ArrayController.extend({
 				Ember.$("#log").prepend("<li><span class='logdate'>"+ now +"</span> <span class='error'>"+m.messageData+"</span></li>");
 				this.logcount++;
 			} else if ( m.messageType && m.messageType === "device") {
-				console.log(m);
 				var pending = false;
 				if (m.status.State===0) {
 					pending = true;
 				}
 				var error = false;
-				if (m.status.State===1) {
+				if (m.status.State===1 || m.status.StateIsError===1) {
 					error = true;
 				}
 				this.store.push('index', {
