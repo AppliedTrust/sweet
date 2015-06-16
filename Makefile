@@ -22,6 +22,7 @@ darwin64: bindata
 deps:
 	go get github.com/vaughan0/go-ini github.com/docopt/docopt-go github.com/kballard/go-shellquote github.com/kr/pty github.com/mgutz/ansi
 	go get github.com/gorilla/handlers github.com/gorilla/mux github.com/gorilla/websocket github.com/goji/httpauth
+	cd frontend && npm install && bower install 
 
 ####
 packages: rpm32 deb32 rpm64 deb64

@@ -54,7 +54,8 @@ func RunWebserver(Opts *SweetOptions) {
 			for {
 				time.Sleep(time.Second)
 				metrics := map[string]string{"goroutines": fmt.Sprintf("%d", runtime.NumGoroutine())}
-				metrics["devices"] = "123" // TODO
+				metrics["devices"] = fmt.Sprintf("%d", len(Opts.Devices))
+				// TODO - more stats
 				Opts.Hub.broadcast <- event{MessageType: "metric", Device: "", Metrics: metrics}
 			}
 		}()
@@ -112,7 +113,7 @@ func (Opts *SweetOptions) websocketHandler(r *http.Request, ws *websocket.Conn) 
 			}
 		}
 	}()
-	// init messages
+	// TODO! init messages
 	// ongoing messages
 	for message := range c.send {
 		err := c.ws.WriteJSON(message)
@@ -221,6 +222,6 @@ func webStaticHandler(w http.ResponseWriter, r *http.Request, Opts *SweetOptions
 	io.Copy(w, bytes.NewReader(staticAsset))
 }
 
-func deviceIndexHandler(w http.ResponseWriter, r *http.Request, Opts *SweetOptions) {
+func deviceIndexHandler(w http.ResponseWriter, r *http.Request, Opts *SweetOptions) { // TODO!
 	fmt.Fprintf(w, `{"indices": []}`)
 }

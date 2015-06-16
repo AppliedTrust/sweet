@@ -131,12 +131,9 @@ func RunCollectors(Opts *SweetOptions) {
 			_ = <-collectorDones
 		}
 		Opts.LogInfo(fmt.Sprintf("All %d collectors finished.", len(Opts.Devices)))
-		/*
-			TODO
 			if err := updateDiffs(Opts); err != nil {
 				Opts.LogFatal(fmt.Sprintf("Fatal error updating config diffs: %s", err.Error()))
 			}
-		*/
 		if err := commitChanges(Opts); err != nil {
 			Opts.LogFatal(fmt.Sprintf("Fatal error commiting changes with git: %s", err.Error()))
 		}

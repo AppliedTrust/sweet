@@ -39,7 +39,7 @@ export default Ember.ArrayController.extend({
 					"errorMessage": m.status.ErrorMessage,
 					"state": stateMapping[m.status.State]
 				});
-			} else if ( (m.messageType && m.messageType === "metric") && (this.get("showstats")===true) ) {
+			} else if (m.messageType && m.messageType === "metric") {
 				Ember.$("#numgoroutines").html(m.metrics.goroutines);
 				Ember.$("#numdevices").html(m.metrics.devices);
 		  }

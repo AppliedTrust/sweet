@@ -2,6 +2,7 @@
   "predef": [
     "document",
     "window",
+    "moment",
     "-Promise"
   ],
   "browser": true,

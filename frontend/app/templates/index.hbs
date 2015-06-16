@@ -11,19 +11,25 @@
 				</div>
 				<div class="col-xs-4">
 					{{device.state}}
+          {{#if device.isPending}}
+            <i class="fa fa-cloud-download fa-3x"></i>
+					{{/if}}
 					{{#if device.isError}}
 						<br><span class="errormessage">{{device.errorMessage}}</span>
 					{{/if}}
+          <div class="btn-group">
+            <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              Download <span class="caret"></span>
+            </button>
+            <ul class="dropdown-menu">
+              <li><a href="#">Action</a></li>
+              <li><a href="#">Another action</a></li>
+              <li><a href="#">Something else here</a></li>
+              <li role="separator" class="divider"></li>
+              <li><a href="#">Separated link</a></li>
+            </ul>
+          </div>
 				</div>
-				<div class="col-xs-4">
-					{{#if device.isPending}}
-						<i class="fa fa-cloud-download fa-3x"></i>
-					{{/if}}
-					{{#if device.isError}}
-						<i class="fa fa-exclamation-triangle fa-3x"></i>
-					{{/if}}
-				</div>
-
 			</div>
 		{{else}}
 			No devices yet!
